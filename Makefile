@@ -11,8 +11,8 @@ PROG_REVISION := $(shell echo $(FULL_VERSION) | cut -f2 -d\.|cut -f1 -d\-)
 
 VASM    := vasmm68k_mot
 
-# NDK include path (override with: make NDK_INC=/your/path)
-NDK_INC ?= /opt/amiga/m68k-amigaos/ndk-include
+# NDK include path (override with: make NDK_PATH=/your/path)
+NDK_PATH ?= $(shell realpath $$(dirname $$(which $(CC)))/../m68k-amigaos/ndk-include)
 
 .PHONY: all clean
 
@@ -81,7 +81,7 @@ download-libs: $(MMULIB_LHA)
 
 TinySetPatch: TinySetPatch.S
 	@echo "  VASM $@"
-	@$(VASM) -quiet -Fhunkexe -o $@ -nosym $< -I $(NDK_INC)
+	@$(VASM) -quiet -Fhunkexe -o $@ -nosym $< -I $(NDK_PATH)
 
 disk: $(TARGET) download-libs TinySetPatch
 	@echo "  DISK"
