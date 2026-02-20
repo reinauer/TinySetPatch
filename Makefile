@@ -10,6 +10,7 @@ PROG_VERSION := $(shell echo $(FULL_VERSION) | cut -f1 -d\.)
 PROG_REVISION := $(shell echo $(FULL_VERSION) | cut -f2 -d\.|cut -f1 -d\-)
 
 VASM    := vasmm68k_mot
+CC      := m68k-amigaos-gcc
 
 # NDK include path (override with: make NDK_PATH=/your/path)
 NDK_PATH ?= $(shell realpath $$(dirname $$(which $(CC)))/../m68k-amigaos/ndk-include)
