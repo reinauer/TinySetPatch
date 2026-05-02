@@ -12,9 +12,9 @@
 ;   - ProcessPatchTable() iterates through patches in 0x0BAD format
 ;   - Each patch returns: 0=skip, 1=success, -1=failure
 ;   - Summary shows count of applied patches
-; 
+;
 ;   Implemented Patches:
-; 
+;
 ;   1. Patch_680x0Support (Patch 0):
 ;     - Detects CPU type (68000-68060)
 ;     - Sets cumulative AttnFlags (060 sets all lower CPU flags)
@@ -32,17 +32,17 @@
 ;       - 68020/030: I-cache, I-burst, D-cache, D-burst
 ;       - 68040: $80008000 (IE + DE)
 ;       - 68060: $A0C08000 (full cache/branch/store buffer)
-; 
+;
 ;   Exception Handlers:
 ;   - FLineHandler (Vector 11) - chains to old handler or skips F-line instructions
 ;   - UnimpFPHandler (Vector 60) - chains or skips unimplemented FP ops
 ;   - UnimpIntHandler (Vector 61) - chains or skips MOVEP/CAS/CAS2/64-bit MUL/DIV
-; 
+;
 ;   Error Handling:
 ;   - PrintHexLong displays IoErr codes in hex when library loading fails
 ;   - Each patch reports its status independently
-; 
-
+;
+	MACHINE 68000
     INCDIR  "include:"
     INCLUDE "exec/types.i"
     INCLUDE "exec/execbase.i"
@@ -427,9 +427,11 @@ Patch_680x0Support:
     moveq   #0,d5
     cmpi.l  #2,d7
     blt.s   .NoCacheSave
-    dc.w    $4E7A,$5002         ; MOVEC CACR,D5
+	MACHINE 68020
+    movec	CACR,d5
     moveq   #0,d0
-    dc.w    $4E7B,$0002         ; MOVEC D0,CACR (Disable)
+    movec	d0,CACR ; (Disable)
+	MACHINE 68000
 .NoCacheSave:
     lea     SavedCACR(pc),a0
     move.l  d5,(a0)
@@ -461,7 +463,9 @@ Patch_680x0Support:
     blt.s   .NoCacheRestore
     lea     SavedCACR(pc),a0
     move.l  (a0),d5
-    dc.w    $4E7B,$5002         ; MOVEC D5,CACR
+	MACHINE 68020
+    movec	d5,CACR
+	MACHINE 68000
 .NoCacheRestore:
 
     move.l  (sp)+,d0
@@ -555,7 +559,9 @@ Patch_DataCache:
     move.l  d0,-(sp)
 
     ; Read current CACR
-    dc.w    $4E7A,$0002         ; MOVEC CACR,D0
+    MACHINE 68020
+    movec	CACR,d0
+	MACHINE 68000
 
     cmpi.l  #4,d7
     bge.s   .Cache040Plus
@@ -582,7 +588,9 @@ Patch_DataCache:
     or.l    #$A0C08000,d0       ; I-cache, D-cache, branch cache, store buffer
 
 .SetCache:
-    dc.w    $4E7B,$0002         ; MOVEC D0,CACR
+	MACHINE 68020
+    movec	d0,CACR
+	MACHINE 68000
 
     move.l  (sp)+,d0
     jsr     _LVOUserState(a6)
@@ -605,7 +613,9 @@ Install060Vectors:
     movem.l d0-d2/a0-a2,-(sp)
 
     ; Get VBR
-    dc.w    $4E7A,$8801         ; MOVEC VBR,A0
+	MACHINE 68010
+    movec	VBR,a0
+	MACHINE 68000
 
     ; --- Vector 11: F-Line Emulator ($2C) ---
     ; Save old vector
@@ -737,7 +747,9 @@ DetectCPU:
 
     ; Check 68010+ (VBR exists)
     moveq   #0,d0
-    dc.w    $4E7A,$0801         ; MOVEC VBR,D0
+    MACHINE 68010
+    movec	VBR,d0
+	MACHINE 68000
 
     tst.l   d0
     beq.s   .VBR_Zero
@@ -749,29 +761,39 @@ DetectCPU:
 
 .VBR_Zero:
     moveq   #1,d0               ; At least 68010
-
+	MACHINE 68030
     ; Check 68020+ (CACR)
-    dc.w    $4E7A,$1002         ; MOVEC CACR,D1
-    moveq   #2,d0
+    movec	CACR,D1
+    moveq   #2,d0               ; we have at least as 68(EC)020
 
-    ; Assume 68030 if 68020 passes (simplified)
+	move.l	d1,d2               ; copy
+	or.l	#16,d2              ; 16 = Instruction burst enable: 68030 only flag
+	movec	d2,CACR
+	movec	CACR,d2
+	movec	d1,CACR             ; restore old cache state
+    MACHINE 68000
+	btst	#16,d2              ; this flag is ignored on 68020/40/60
+	beq.s	.Check040_60        ; if the flag could not be set we don't have a 68030!
+    ; Assume 68030
     moveq   #3,d0
-
+.Check040_60
     ; Check 68040/060 (ITT0)
-    dc.w    $4E7A,$1004         ; MOVEC ITT0,D1
+    MACHINE 68060
+    movec	ITT0,d1
     moveq   #4,d0
 
     ; Check 68060 (PCR)
-    dc.w    $4E7A,$1808         ; MOVEC PCR,D1
+    movec	PCR,d1
     moveq   #6,d0
 
 .Cleanup:
+	MACHINE 68010
     move.l  d2,$10.w            ; Restore absolute vector
 
     tst.l   d0
     beq.s   .EndDetect
 
-    dc.w    $4E7A,$1801         ; MOVEC VBR,D1
+    movec	VBR,d1
     tst.l   d1
     beq.s   .EndDetect
 
@@ -779,6 +801,7 @@ DetectCPU:
     move.l  d3,$10(a1)          ; Restore VBR vector
 
 .EndDetect:
+	MACHINE 68000
     movem.l (sp)+,d1-d4/a0-a2
     rts
 
@@ -856,7 +879,9 @@ ApplyAttnFlags:
 ; =============================================================
 FixVector7Align:
     movem.l d0/a0/a6,-(sp)
-    dc.w    $4E7A,$8801         ; MOVEC VBR,A0
+    MACHINE 68010
+    movec	VBR,a0
+    MACHINE 68000
     moveq   #-2,d0
     and.l   d0,28(a0)           ; Clear bit 0 of vector 7
     ; CacheClearU requires exec V37+
@@ -875,17 +900,19 @@ FixVector7Align:
 ; =============================================================
 ProbeCacrBit14:
     movem.l d1-d3,-(sp)
-    dc.w    $4E7A,$1002         ; MOVEC CACR,D1
+	MACHINE 68020
+    movec	CACR,d1
     move.l  d1,d2
     bchg    #14,d2
-    dc.w    $4E7B,$2002         ; MOVEC D2,CACR
-    dc.w    $4E7A,$3002         ; MOVEC CACR,D3
-    dc.w    $4E7B,$1002         ; MOVEC D1,CACR (restore)
+    movec	d2,CACR
+    movec	CACR,d3
+    movec	d1,CACR ; restore
     eor.l   d1,d3
     btst    #14,d3
     sne     d0
     ext.w   d0
     ext.l   d0
+	MACHINE 68000
     movem.l (sp)+,d1-d3
     rts
 
