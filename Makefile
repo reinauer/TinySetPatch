@@ -80,9 +80,10 @@ download-libs: $(MMULIB_LHA)
 		MMULib/Libs/68030.library MMULib/Libs/68040.library \
 		MMULib/Libs/68060.library
 
-TinySetPatch: TinySetPatch.S
+# Kickstart 1.x rejects VASM's default HUNK_RELOC32SHORT hunks.
+TinySetPatch: TinySetPatch.S Makefile
 	@echo "  VASM $@"
-	@$(VASM) -quiet -Fhunkexe -m68020up -o $@ -nosym $< -I $(NDK_PATH)
+	@$(VASM) -quiet -Fhunkexe -kick1hunks -m68020up -o $@ -nosym $< -I $(NDK_PATH)
 
 disk: $(TARGET) download-libs TinySetPatch
 	@echo "  DISK"
