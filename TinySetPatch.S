@@ -28,6 +28,7 @@
 ;   3. Patch_DataCache (Patch 2):
 ;     - Uses exec CacheControl() for CPU-aware cache management (V36+)
 ;     - Enables I-cache, I-burst, D-cache, D-burst, copyback
+;     - Enables 68060 superscalar, branch cache, and store buffer
 ;     - Direct CACR fallback for pre-V36 (Kickstart 1.3):
 ;       - 68020/030: I-cache, I-burst, D-cache, D-burst
 ;       - 68040: $80008000 (IE + DE)
@@ -539,8 +540,8 @@ Patch_DataCache:
 
     ; Use exec CacheControl() when available (V36+/Kickstart 2.0+).
     ; This updates exec's internal cache state so diagnostic tools
-    ; report correctly, and the 68060.library-patched version handles
-    ; 060-specific CACR bits, DTT registers, and store/branch caches.
+    ; report correctly, and lets 68040/060-aware libraries configure
+    ; the MMU/cache attributes for normal memory.
     ; On 040/060, direct CACR writes alone are insufficient because
     ; without DTT/MMU setup all memory defaults to noncacheable.
     cmpi.w  #36,LIB_VERSION(a6)
@@ -551,6 +552,28 @@ Patch_DataCache:
     move.l  #$80001111,d0       ; bits to set
     move.l  d0,d1               ; mask (modify all these bits)
     jsr     _LVOCacheControl(a6)
+    cmpi.l  #6,d7
+    bne.s   .CacheDone
+
+    ; The generic CacheControl() flags do not expose the 68060 PCR
+    ; superscalar bit or the CACR branch-cache/store-buffer bits.
+    ; Some 060.library/exec combinations leave those disabled.
+    jsr     _LVOSuperState(a6)
+    move.l  d0,-(sp)
+
+	MACHINE 68060
+    movec	PCR,d0
+    and.l   #$000000ff,d0
+    or.l    #$00000001,d0       ; Enable superscalar dispatch
+    movec	d0,PCR
+	MACHINE 68020
+    movec	CACR,d0
+    or.l    #$20800000,d0       ; Enable branch cache and store buffer
+    movec	d0,CACR
+	MACHINE 68000
+
+    move.l  (sp)+,d0
+    jsr     _LVOUserState(a6)
     bra.s   .CacheDone
 
 .DirectCACR:
