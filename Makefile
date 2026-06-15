@@ -76,7 +76,7 @@ download-libs: $(MMULIB_LHA)
 	# Extract MMULib
 	@echo "  UNPACK $(MMULIB_LHA)"
 	@lha xq $(MMULIB_LHA) MMULib/Libs/mmu.library \
-		MMULib/Libs/680x0.library MMULib/Libs/68020.library \
+		MMULib/Libs/68020.library \
 		MMULib/Libs/68030.library MMULib/Libs/68040.library \
 		MMULib/Libs/68060.library
 
@@ -89,7 +89,7 @@ disk: $(TARGET) download-libs TinySetPatch
 	@echo "  DISK"
 	@xdftool $(DISK) format "TinySetPatch"
 	@xdftool $(DISK) makedir Libs
-	@for lib in mmu 680x0 68020 68030 68040 68060; do \
+	@for lib in mmu 68020 68030 68040 68060; do \
 		xdftool $(DISK) write MMULib/Libs/$$lib.library Libs/$$lib.library; \
 	done
 	@xdftool $(DISK) makedir S

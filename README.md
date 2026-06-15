@@ -1,11 +1,11 @@
 # TinySetPatch
 
-A minimal SetPatch replacement for Amiga that fits on a bootable floppy disk. Loads CPU-specific 680x0.library files and applies essential system patches.
+A minimal SetPatch replacement for Amiga that fits on a bootable floppy disk. Loads CPU-specific 68020/68030/68040/68060.library files and applies essential system patches.
 
 ## Features
 
 - **CPU Detection**: Automatically detects 68000 through 68060 processors
-- **680x0.library Loading**: Loads the appropriate CPU library from MMULib
+- **CPU Library Loading**: Loads the appropriate CPU library from MMULib
 - **AttnFlags**: Sets proper CPU flags in ExecBase for software compatibility
 - **Exception Vectors**: Installs handlers for 68060 F-line, unimplemented FP, and unimplemented integer instructions
 - **AGA Support**: Enables 64-bit fetch mode on AGA chipsets
@@ -44,7 +44,6 @@ The generated ADF contains:
 ```
 C/TinySetPatch      - The main executable
 Libs/mmu.library    - MMU library
-Libs/680x0.library  - Generic CPU library
 Libs/68020.library  - 68020 support
 Libs/68030.library  - 68030 support
 Libs/68040.library  - 68040 support
@@ -67,7 +66,7 @@ TinySetPatch QUIET
 
 TinySetPatch implements a patch table system similar to the original SetPatch:
 
-1. **Patch 0 - 680x0 Support**: Detects CPU, sets AttnFlags, fixes vector 7 alignment, installs 68060 exception vectors, and loads the appropriate 680x0.library
+1. **Patch 0 - 680x0 Support**: Detects CPU, sets AttnFlags, fixes vector 7 alignment, installs 68060 exception vectors, and loads the appropriate CPU-specific library
 2. **Patch 1 - AGA Graphics**: Detects AGA via LISAID register and enables 64-bit fetch mode
 3. **Patch 2 - Data Cache**: Enables instruction and data caches with CPU-appropriate settings
 
@@ -75,7 +74,7 @@ After applying patches, TinySetPatch creates a "SetPatch" semaphore in the syste
 
 ## Credits
 
-680x0 libraries are from [MMULib](http://aminet.net/util/libs/MMULib.lha) by Thomas Richter.
+CPU-specific 680x0 libraries are from [MMULib](http://aminet.net/util/libs/MMULib.lha) by Thomas Richter.
 
 ## Contributing
 
