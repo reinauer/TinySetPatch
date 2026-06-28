@@ -8,7 +8,7 @@ A minimal SetPatch replacement for Amiga that fits on a bootable floppy disk. Lo
 - **CPU Library Loading**: Loads the appropriate CPU library from MMULib
 - **AttnFlags**: Sets proper CPU flags in ExecBase for software compatibility
 - **Exception Vectors**: Installs handlers for 68060 F-line, unimplemented FP, and unimplemented integer instructions
-- **AGA Support**: Enables 64-bit fetch mode on AGA chipsets
+- **AGA Support**: Enable AGA display modes when possible and 64-bit fetch mode
 - **Data Cache**: Enables CPU caches for improved performance
 - **SetPatch Semaphore**: Creates the "SetPatch" semaphore that 68060.library requires
 
@@ -67,7 +67,7 @@ TinySetPatch QUIET
 TinySetPatch implements a patch table system similar to the original SetPatch:
 
 1. **Patch 0 - 680x0 Support**: Detects CPU, sets AttnFlags, fixes vector 7 alignment, installs 68060 exception vectors, and loads the appropriate CPU-specific library
-2. **Patch 1 - AGA Graphics**: Detects AGA via LISAID register and enables 64-bit fetch mode
+2. **Patch 1 - AGA Graphics**: Opens graphics.library V39 and calls `SetChipRev(SETCHIPREV_BEST)` so the OS updates its display database; falls back to LISAID/FMODE only on older systems
 3. **Patch 2 - Data Cache**: Enables instruction and data caches with CPU-appropriate settings
 
 After applying patches, TinySetPatch creates a "SetPatch" semaphore in the system. This semaphore is required by 68060.library and signals to other software that system patches have been applied.

@@ -23,8 +23,8 @@
 ;     - Probes CACR bit 14
 ;     - Loads appropriate 680x0.library with cache management
 ;   2. Patch_AGAGraphics (Patch 1):
-;     - Detects AGA via LISAID register ($DFF07C)
-;     - Enables 64-bit fetch mode via FMODE ($DFF1FC)
+;     - Uses graphics.library V39 SetChipRev(SETCHIPREV_BEST)
+;     - Falls back to raw LISAID/FMODE only when that API is unavailable
 ;   3. Patch_DataCache (Patch 2):
 ;     - Uses exec CacheControl() for CPU-aware cache management (V36+)
 ;     - Enables I-cache, I-burst, D-cache, D-burst, copyback
@@ -52,6 +52,7 @@
     INCLUDE "exec/semaphores.i"
     INCLUDE "lvo/exec_lib.i"
     INCLUDE "lvo/dos_lib.i"
+    INCLUDE "lvo/graphics_lib.i"
 
 ; --- Critical Constants ---
 AbsExecBase     EQU 4
@@ -72,6 +73,10 @@ VEC_UNIMP_INT   EQU $F4         ; Vector 61 - Unimplemented Integer
 LISAID          EQU $DFF07C
 FMODE           EQU $DFF1FC
 AGA_LISA_ID     EQU $00F8
+GFXF_AA_ALICE   EQU $00000004
+GFXF_AA_LISA    EQU $00000008
+GFXF_AA_MASK    EQU GFXF_AA_ALICE|GFXF_AA_LISA
+SETCHIPREV_BEST EQU $FFFFFFFF
 
 ; SetPatch semaphore structure offsets (extends SignalSemaphore)
 SSP_PATCHLIST   EQU 46              ; MinList of patches (0x2E)
@@ -493,14 +498,47 @@ Patch_680x0Support:
 Patch_AGAGraphics:
     movem.l d1-d7/a0-a6,-(sp)
 
-    ; Check for AGA chipset
+    ; AmigaOS 3.0+ graphics.library knows how to detect the chipset and
+    ; update the display database that ScreenMode and ASL requesters use.
+    move.l  AbsExecBase.w,a6
+    lea     GraphicsName(pc),a1
+    moveq   #39,d0
+    jsr     _LVOOpenLibrary(a6)
+    tst.l   d0
+    beq.s   .RawFMODEFallback
+
+    move.l  d0,a5               ; GfxBase
+    move.l  a5,a6
+    moveq   #-1,d0              ; SETCHIPREV_BEST
+    jsr     _LVOSetChipRev(a6)
+    move.l  d0,d7               ; Save returned GfxBase->ChipRevBits0
+
+    move.l  AbsExecBase.w,a6
+    move.l  a5,a1
+    jsr     _LVOCloseLibrary(a6)
+
+    move.l  d7,d0
+    and.l   #GFXF_AA_MASK,d0
+    cmpi.l  #GFXF_AA_MASK,d0
+    bne.s   .NoAGA
+
+    lea     MsgAGA(pc),a0
+    bsr     PrintString
+
+    movem.l (sp)+,d1-d7/a0-a6
+    moveq   #1,d0
+    rts
+
+.RawFMODEFallback:
+    ; Pre-V39 fallback: this only helps code that needs the hardware fetch
+    ; mode changed. It does not update graphics.library's mode database.
     move.l  #LISAID,a0
     move.w  (a0),d0
     and.w   #$00FF,d0
     cmpi.w  #AGA_LISA_ID,d0
     bne     .NoAGA
 
-    lea     MsgAGA(pc),a0
+    lea     MsgAGAFallback(pc),a0
     bsr     PrintString
 
     ; Enable AGA modes via FMODE
@@ -1226,6 +1264,7 @@ SetPatchSemaPtr: dc.l   0
 
 ; Strings
 DOSName:        dc.b    "dos.library",0
+GraphicsName:   dc.b    "graphics.library",0
 LibTemplate:    dc.b    "680",0
 LibSuffix:      dc.b    ".library",0
 ArgQuiet:       dc.b    "QUIET",0       ; Command line argument
@@ -1241,7 +1280,8 @@ MsgPatchFail:   dc.b    "  Patch failed!",10,0
 MsgPatchCount:  dc.b    "Patches applied: ",0
 Msg680x0:       dc.b    "  680x0 Support: ",0
 MsgInstallVec:  dc.b    "Installing exception vectors...",10,0
-MsgAGA:         dc.b    "  AGA Graphics: Enabling 64-bit fetch",10,0
+MsgAGA:         dc.b    "  AGA Graphics: Enabled Advanced Graphics Modes",10,0
+MsgAGAFallback: dc.b    "  AGA Graphics: Enabling 64-bit fetch fallback",10,0
 MsgCache:       dc.b    "  CPU Caches: Enabling",10,0
 MsgLoading:     dc.b    "Loading ",0
 MsgEllipsis:    dc.b    "... ",0
