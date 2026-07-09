@@ -828,12 +828,12 @@ DetectCPU:
     moveq   #2,d0               ; we have at least as 68(EC)020
 
 	move.l	d1,d2               ; copy
-	or.l	#16,d2              ; 16 = Instruction burst enable: 68030 only flag
+	or.l	#(1<<4),d2          ; set bit 4 (IBE, Instruction Burst Enable): 68030-only
 	movec	d2,CACR
 	movec	CACR,d2
 	movec	d1,CACR             ; restore old cache state
     MACHINE 68000
-	btst	#16,d2              ; this flag is ignored on 68020/40/60
+	btst	#4,d2               ; IBE reads back 0 on 68020/40/60
 	beq.s	.Check040_60        ; if the flag could not be set we don't have a 68030!
     ; Assume 68030
     moveq   #3,d0
