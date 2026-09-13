@@ -70,7 +70,21 @@ TinySetPatch implements a patch table system similar to the original SetPatch:
 2. **Patch 1 - AGA Graphics**: Opens graphics.library V39 and calls `SetChipRev(SETCHIPREV_BEST)` so the OS updates its display database; falls back to LISAID/FMODE only on older systems
 3. **Patch 2 - Data Cache**: Enables instruction and data caches with CPU-appropriate settings
 
-After applying patches, TinySetPatch creates a "SetPatch" semaphore in the system. This semaphore is required by 68060.library and signals to other software that system patches have been applied.
+Before applying patches, TinySetPatch creates the standard SetPatch semaphore
+required by 68060.library. It advertises compatibility version 45.15, which is
+separate from TinySetPatch's executable version. The same allocation contains
+an identification record at byte offset 80 (0x50): eight ASCII bytes `TinySetP`,
+followed by two `UWORD` fields holding the executable version and revision
+(currently 0 and 1, at offsets 88 and 90). The allocation is 92 bytes long and
+remains allocated after TinySetPatch exits.
+
+Ordinary SetPatch and older TinySetPatch builds do not provide this record.
+Readers must guard the probe before reading even the signature. xSysInfo reads
+the record only when it lies entirely within the same 256-byte block as the
+last byte of the known-valid `SignalSemaphore` header. This avoids crossing
+an MMU page boundary on the 68851/68030 as well as the 68040/68060. When the
+guard fails, it displays just the SetPatch compatibility version; identification
+can therefore be skipped even when the next block is readable.
 
 ## Credits
 

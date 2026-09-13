@@ -80,10 +80,17 @@ SETCHIPREV_BEST EQU $FFFFFFFF
 
 ; SetPatch semaphore structure offsets (extends SignalSemaphore)
 SSP_PATCHLIST   EQU 46              ; MinList of patches (0x2E)
-SSP_PATCHCOUNT  EQU 58              ; Patch count word (0x3A)
-SSP_MAXPATCHES  EQU 60              ; Max patches word (0x3C)
+SSP_VERSION     EQU 58              ; Compatibility version word (0x3A)
+SSP_REVISION    EQU 60              ; Compatibility revision word (0x3C)
 SSP_NAMEBUF     EQU 62              ; Name buffer start (0x3E)
-SSP_SIZE        EQU 80              ; Total allocation size
+SSP_TINYMAGIC   EQU 80              ; Eight-byte "TinySetP" signature
+SSP_TINYVERSION EQU SSP_TINYMAGIC+8 ; Executable version word
+SSP_TINYREVISION EQU SSP_TINYVERSION+2
+SSP_SIZE        EQU SSP_TINYREVISION+2
+
+; Executable version: keep in step with MsgStart and Version below.
+TINY_VERSION    EQU 0
+TINY_REVISION   EQU 1
 
 ; Debug options - set to 1 to enable patch-by-patch debugging
 DEBUG_PATCHES   EQU 0               ; Set to 1 to prompt before each patch
@@ -139,12 +146,12 @@ Start:
     ;                   0x2E: lh_Head (points to lh_Tail initially)
     ;                   0x32: lh_Tail (NULL)
     ;                   0x36: lh_TailPred (points to lh_Head initially)
-    ;   0x3A    2     Patch count (word) - non-zero means "installed"
-    ;                   Set to 0x2D (45) by SetPatch
-    ;   0x3C    2     Max patches (word) - set to 0x0F (15)
+    ;   0x3A    2     Compatibility version (45)
+    ;   0x3C    2     Compatibility revision (15)
     ;   0x3E    var   Name buffer - contains "« SetPatch »" string
     ;
-    ; Total size: 64 + strlen("« SetPatch »") + 1 = ~77 bytes, allocate 80
+    ; Keep the standard semaphore layout and name intact. An extension at
+    ; byte 80 identifies TinySetPatch and holds its executable version.
     moveq   #SSP_SIZE,d0
     move.l  #$10001,d1              ; MEMF_PUBLIC|MEMF_CLEAR
     jsr     _LVOAllocMem(a6)
@@ -176,9 +183,15 @@ Start:
     lea     SSP_PATCHLIST(a2),a1
     move.l  a1,8(a0)                ; lh_TailPred = &lh_Head
 
-    ; Set patch count fields
-    move.w  #$2D,SSP_PATCHCOUNT(a2) ; Patch count (45 = max patches)
-    move.w  #$0F,SSP_MAXPATCHES(a2) ; Max patches (15)
+    ; Advertise the SetPatch compatibility version, not our binary version.
+    move.w  #45,SSP_VERSION(a2)
+    move.w  #15,SSP_REVISION(a2)
+
+    ; This signature and version remain valid after the executable exits.
+    move.l  #$54696E79,SSP_TINYMAGIC(a2)   ; "Tiny"
+    move.l  #$53657450,SSP_TINYMAGIC+4(a2) ; "SetP"
+    move.w  #TINY_VERSION,SSP_TINYVERSION(a2)
+    move.w  #TINY_REVISION,SSP_TINYREVISION(a2)
 
     ; Save semaphore pointer
     lea     SetPatchSemaPtr(pc),a0
