@@ -95,7 +95,7 @@ SSP_SIZE        EQU SSP_TINYREVISION+2
 
 ; Executable version: keep in step with MsgStart and Version below.
 TINY_VERSION    EQU 0
-TINY_REVISION   EQU 1
+TINY_REVISION   EQU 2
 
 ; Debug options - set to 1 to enable patch-by-patch debugging
 DEBUG_PATCHES   EQU 0               ; Set to 1 to prompt before each patch
@@ -1353,7 +1353,7 @@ ArgQuiet:       dc.b    "QUIET",0       ; Command line argument
     EVEN
 LibBuffer:      ds.b    32
 
-MsgStart:       dc.b    "TinySetPatch v0.1",10,0
+MsgStart:       dc.b    "TinySetPatch v0.2",10,0
 MsgAlready:     dc.b    "TinySetPatch already loaded. Exiting.",10,0
 MsgDetect:      dc.b    "Probing hardware... ",0
 MsgFoundCPU:    dc.b    "Detected: ",0
@@ -1400,6 +1400,6 @@ HexBuffer:      ds.b    12
 ; =============================================================
 ; VERSION STRING
 ; =============================================================
-Version:        dc.b    "$VER: TinySetPatch 0.1 (17.12.2025)",0
+Version:        dc.b    "$VER: TinySetPatch 0.2 (14.9.2026)",0
     EVEN
     END
