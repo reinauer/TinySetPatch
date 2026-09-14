@@ -68,7 +68,7 @@ TinySetPatch implements a patch table system similar to the original SetPatch:
 
 1. **Patch 0 - 680x0 Support**: Detects CPU, sets AttnFlags, fixes vector 7 alignment, installs 68060 exception vectors, and loads the appropriate CPU-specific library
 2. **Patch 1 - AGA Graphics**: Opens graphics.library and intuition.library V39, calls `SetChipRev(SETCHIPREV_BEST)` under the Intuition lock, invalidates existing viewport vectors, and remakes the display after unlocking; falls back to LISAID/FMODE only on older systems
-3. **Patch 2 - Data Cache**: Enables instruction and data caches with CPU-appropriate settings
+3. **Patch 2 - Data Cache**: Enables instruction and data caches with CPU-appropriate settings, including write-allocate on the 68030
 
 Before applying patches, TinySetPatch creates the standard SetPatch semaphore
 required by 68060.library. It advertises compatibility version 45.15, which is

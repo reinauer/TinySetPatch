@@ -29,6 +29,7 @@
 ;   3. Patch_DataCache (Patch 2):
 ;     - Uses exec CacheControl() for CPU-aware cache management (V36+)
 ;     - Enables I-cache, I-burst, D-cache, D-burst, copyback
+;     - Enables write-allocate on the 68030
 ;     - Enables 68060 superscalar, branch cache, and store buffer
 ;     - Direct CACR fallback for pre-V36 (Kickstart 1.3):
 ;       - 68020/030: I-cache, I-burst, D-cache, D-burst
@@ -661,6 +662,10 @@ Patch_DataCache:
     ; V36+: CacheControl(bits, mask)
     ; CACRF_EnableI|CACRF_IBE|CACRF_EnableD|CACRF_DBE|CACRF_CopyBack
     move.l  #$80001111,d0       ; bits to set
+    cmpi.l  #3,d7
+    bne.s   .SetCacheControl
+    bset    #13,d0             ; CACRF_WriteAllocate (68030)
+.SetCacheControl:
     move.l  d0,d1               ; mask (modify all these bits)
     jsr     _LVOCacheControl(a6)
     cmpi.l  #6,d7
@@ -704,6 +709,9 @@ Patch_DataCache:
     ; 68020: I-cache only (bit 0), other bits harmlessly ignored
     ; 68030: I-cache (0), I-burst (4), D-cache (8), D-burst (12)
     or.l    #$1111,d0           ; Enable I-cache, I-burst, D-cache, D-burst
+    cmpi.l  #3,d7
+    bne.s   .SetCache
+    bset    #13,d0             ; Write-allocate is required on the 68030
     bra.s   .SetCache
 
 .Cache040Plus:
