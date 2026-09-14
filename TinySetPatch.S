@@ -24,6 +24,7 @@
 ;     - Loads appropriate 680x0.library with cache management
 ;   2. Patch_AGAGraphics (Patch 1):
 ;     - Uses graphics.library V39 SetChipRev(SETCHIPREV_BEST)
+;     - Invalidates existing viewport vectors and remakes Intuition's display
 ;     - Falls back to raw LISAID/FMODE only when that API is unavailable
 ;   3. Patch_DataCache (Patch 2):
 ;     - Uses exec CacheControl() for CPU-aware cache management (V36+)
@@ -50,9 +51,12 @@
     INCLUDE "exec/libraries.i"
     INCLUDE "exec/nodes.i"
     INCLUDE "exec/semaphores.i"
+    INCLUDE "intuition/intuitionbase.i"
+    INCLUDE "graphics/videocontrol.i"
     INCLUDE "lvo/exec_lib.i"
     INCLUDE "lvo/dos_lib.i"
     INCLUDE "lvo/graphics_lib.i"
+    INCLUDE "lvo/intuition_lib.i"
 
 ; --- Critical Constants ---
 AbsExecBase     EQU 4
@@ -518,28 +522,84 @@ Patch_AGAGraphics:
     moveq   #39,d0
     jsr     _LVOOpenLibrary(a6)
     tst.l   d0
-    beq.s   .RawFMODEFallback
+    beq     .RawFMODEFallback
 
     move.l  d0,a5               ; GfxBase
+    lea     IntuitionName(pc),a1
+    moveq   #39,d0
+    jsr     _LVOOpenLibrary(a6)
+    moveq   #1,d6               ; Failure unless both libraries are open
+    tst.l   d0
+    beq     .CloseGraphics
+
+    move.l  d0,a4               ; IntuitionBase
+    move.l  a4,a6
+    moveq   #0,d0
+    jsr     _LVOLockIBase(a6)
+    move.l  d0,d5               ; Lock token for UnlockIBase
+
     move.l  a5,a6
     moveq   #-1,d0              ; SETCHIPREV_BEST
     jsr     _LVOSetChipRev(a6)
     move.l  d0,d7               ; Save returned GfxBase->ChipRevBits0
 
+    ; Existing viewports may retain vectors for the previous chipset.
+    ; Match SetPatch's V39+ initialization by clearing the private VecTable
+    ; before rebuilding the display. Keep the viewport list locked.
+    move.l  ib_ViewLord+v_ViewPort(a4),a3
+.NextViewPort:
+    move.l  a3,d0
+    beq.s   .RemakeDisplay
+
+    clr.l   -(sp)              ; TAG_DONE
+    clr.l   -(sp)              ; ti_Data receives the ViewPortExtra
+    move.l  #VTAG_VIEWPORTEXTRA_GET,-(sp)
+    move.l  sp,a1
+    move.l  vp_ColorMap(a3),a0
+    jsr     _LVOVideoControl(a6)
+    move.l  ti_Data(sp),a0
+    lea     12(sp),sp
+    tst.l   d0
+    bne.s   .AdvanceViewPort
+    move.l  a0,d0
+    beq.s   .AdvanceViewPort
+    clr.l   vpe_VecTable(a0)
+.AdvanceViewPort:
+    move.l  vp_Next(a3),a3
+    bra.s   .NextViewPort
+
+.RemakeDisplay:
+    move.l  a4,a6
+    move.l  d5,a0
+    jsr     _LVOUnlockIBase(a6)
+    jsr     _LVORemakeDisplay(a6)
+    move.l  d0,d6               ; V39+: zero means success
+
+    move.l  AbsExecBase.w,a6
+    move.l  a4,a1
+    jsr     _LVOCloseLibrary(a6)
+.CloseGraphics:
     move.l  AbsExecBase.w,a6
     move.l  a5,a1
     jsr     _LVOCloseLibrary(a6)
+    tst.l   d6
+    bne.s   .AGAFailed
 
     move.l  d7,d0
     and.l   #GFXF_AA_MASK,d0
     cmpi.l  #GFXF_AA_MASK,d0
-    bne.s   .NoAGA
+    bne     .NoAGA
 
     lea     MsgAGA(pc),a0
     bsr     PrintString
 
     movem.l (sp)+,d1-d7/a0-a6
     moveq   #1,d0
+    rts
+
+.AGAFailed:
+    movem.l (sp)+,d1-d7/a0-a6
+    moveq   #-1,d0
     rts
 
 .RawFMODEFallback:
@@ -1278,6 +1338,7 @@ SetPatchSemaPtr: dc.l   0
 ; Strings
 DOSName:        dc.b    "dos.library",0
 GraphicsName:   dc.b    "graphics.library",0
+IntuitionName:  dc.b    "intuition.library",0
 LibTemplate:    dc.b    "680",0
 LibSuffix:      dc.b    ".library",0
 ArgQuiet:       dc.b    "QUIET",0       ; Command line argument
