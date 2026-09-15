@@ -26,13 +26,16 @@ TinySetPatch [QUIET]
 Requires:
 - `vasmm68k_mot` (VASM assembler)
 - `xdftool` (from amitools)
-- `lha` (for extracting MMULib)
+- `lha` (for extracting MMULib and creating archives)
 - `curl` (for downloading MMULib)
 - Amiga NDK includes
 
 ```bash
-make            # Build bootable ADF
-make clean      # Remove build artifacts
+make             # Build the executable, bootable ADF, and LHA archive
+make TinySetPatch # Build only the executable
+make disk        # Build the bootable ADF
+make lha         # Build the LHA archive
+make clean       # Remove build artifacts
 ```
 
 The Makefile automatically downloads MMULib from Aminet and extracts the required libraries.
@@ -75,7 +78,7 @@ required by 68060.library. It advertises compatibility version 45.15, which is
 separate from TinySetPatch's executable version. The same allocation contains
 an identification record at byte offset 80 (0x50): eight ASCII bytes `TinySetP`,
 followed by two `UWORD` fields holding the executable version and revision
-(currently 0 and 1, at offsets 88 and 90). The allocation is 92 bytes long and
+(at offsets 88 and 90). The allocation is 92 bytes long and
 remains allocated after TinySetPatch exits.
 
 Ordinary SetPatch and older TinySetPatch builds do not provide this record.

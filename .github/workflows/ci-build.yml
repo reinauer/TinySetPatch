@@ -1,0 +1,52 @@
+name: TinySetPatch CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: stefanreinauer/amiga-gcc:gcc-v13.4
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Mark git directory as safe
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Build all artifacts
+        run: make all
+
+      - name: Get artifact filenames
+        id: artifacts
+        run: |
+          echo "adf=$(make -s print-adf-name)" >> "$GITHUB_OUTPUT"
+          echo "lha=$(make -s print-lha-name)" >> "$GITHUB_OUTPUT"
+
+      - name: Upload executable
+        uses: actions/upload-artifact@v7
+        with:
+          path: TinySetPatch
+          archive: false
+          if-no-files-found: error
+
+      - name: Upload ADF
+        uses: actions/upload-artifact@v7
+        with:
+          path: ${{ steps.artifacts.outputs.adf }}
+          archive: false
+          if-no-files-found: error
+
+      - name: Upload LHA
+        uses: actions/upload-artifact@v7
+        with:
+          path: ${{ steps.artifacts.outputs.lha }}
+          archive: false
+          if-no-files-found: error

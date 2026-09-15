@@ -1,0 +1,58 @@
+name: TinySetPatch Draft Release
+
+on:
+  push:
+    tags:
+      - "v*"
+      - "release_*"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build release artifacts
+    runs-on: ubuntu-latest
+    container: stefanreinauer/amiga-gcc:gcc-v13.4
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Mark git directory as safe
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Build all artifacts
+        run: make all
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-artifacts
+          path: |
+            TinySetPatch
+            TinySetPatch-*.adf
+            TinySetPatch-*.lha
+          if-no-files-found: error
+
+  release:
+    name: Create GitHub Draft Release
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-artifacts
+          path: artifacts
+
+      - name: Create draft release
+        uses: softprops/action-gh-release@v3
+        with:
+          draft: true
+          fail_on_unmatched_files: true
+          files: |
+            artifacts/TinySetPatch
+            artifacts/TinySetPatch-*.adf
+            artifacts/TinySetPatch-*.lha

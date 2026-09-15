@@ -1,3 +1,7 @@
 downloads/
 TinySetPatch
 MMULib
+build/
+version.i
+TinySetPatch*.adf
+TinySetPatch-*.lha
