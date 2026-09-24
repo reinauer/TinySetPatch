@@ -223,7 +223,7 @@ Start:
     bsr     DetectCPU
     move.l  d0,d7               ; D7 = CPU type (0-6)
     move.l  (sp)+,d0
-    jsr     _LVOUserState(a6)
+    bsr     ReturnToUserState
 
     ; Save CPU type globally
     lea     DetectedCPU(pc),a0
@@ -385,7 +385,7 @@ Patch_680x0Support:
     move.l  d0,-(sp)
     bsr     ApplyAttnFlags
     move.l  (sp)+,d0
-    jsr     _LVOUserState(a6)
+    bsr     ReturnToUserState
     jsr     _LVOPermit(a6)
 
     ; --- Step 2: Fix vector 7 alignment ---
@@ -400,7 +400,7 @@ Patch_680x0Support:
     move.l  d0,-(sp)
     bsr     FixVector7Align
     move.l  (sp)+,d0
-    jsr     _LVOUserState(a6)
+    bsr     ReturnToUserState
 
     ; --- Step 3: Install exception handlers for 68060 ---
     cmpi.l  #6,d7
@@ -420,7 +420,7 @@ Patch_680x0Support:
     move.l  d0,-(sp)
     bsr     Install060Vectors
     move.l  (sp)+,d0
-    jsr     _LVOUserState(a6)
+    bsr     ReturnToUserState
 
 .Skip060Vectors:
     ; --- Step 4: Probe CACR bit 14 ---
@@ -435,7 +435,7 @@ Patch_680x0Support:
     move.l  d0,-(sp)
     bsr     ProbeCacrBit14
     move.l  (sp)+,d0
-    jsr     _LVOUserState(a6)
+    bsr     ReturnToUserState
 
     ; --- Step 5: Save and disable caches for library load ---
     IFNE    DEBUG_PATCHES
@@ -459,7 +459,7 @@ Patch_680x0Support:
     lea     SavedCACR(pc),a0
     move.l  d5,(a0)
     move.l  (sp)+,d0
-    jsr     _LVOUserState(a6)
+    bsr     ReturnToUserState
 
     ; --- Step 6: Load the CPU library ---
     IFNE    DEBUG_PATCHES
@@ -492,7 +492,7 @@ Patch_680x0Support:
 .NoCacheRestore:
 
     move.l  (sp)+,d0
-    jsr     _LVOUserState(a6)
+    bsr     ReturnToUserState
 
     IFNE    DEBUG_PATCHES
     lea     MsgDbgDone(pc),a0
@@ -623,7 +623,7 @@ Patch_AGAGraphics:
     move.w  #$0003,(a0)         ; Enable 64-bit fetch mode
 
     move.l  (sp)+,d0
-    jsr     _LVOUserState(a6)
+    bsr     ReturnToUserState
 
     movem.l (sp)+,d1-d7/a0-a6
     moveq   #1,d0
@@ -688,7 +688,7 @@ Patch_DataCache:
 	MACHINE 68000
 
     move.l  (sp)+,d0
-    jsr     _LVOUserState(a6)
+    bsr     ReturnToUserState
     bra.s   .CacheDone
 
 .DirectCACR:
@@ -734,7 +734,7 @@ Patch_DataCache:
 	MACHINE 68000
 
     move.l  (sp)+,d0
-    jsr     _LVOUserState(a6)
+    bsr     ReturnToUserState
 
 .CacheDone:
     movem.l (sp)+,d1-d7/a0-a6
@@ -873,6 +873,23 @@ UnimpIntHandler:
 .UInt_Super:
     addq.l  #4,2(sp)
     rte
+
+; =============================================================
+; RETURN FROM SUPERSTATE
+; =============================================================
+; Exec V33/V34 UserState leaves the 68010+ exception-frame format word
+; on the user stack. Return directly without creating an exception frame.
+; D0 is the stack returned by SuperState; zero means already supervisor.
+ReturnToUserState:
+    tst.l   d0
+    beq.s   .AlreadySuper
+    move.l  (sp)+,a0
+    move.l  sp,usp
+    move.l  d0,sp
+    and.w   #$DFFF,sr
+    jmp     (a0)
+.AlreadySuper:
+    rts
 
 ; =============================================================
 ; CPU DETECTION
