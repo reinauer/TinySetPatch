@@ -899,7 +899,7 @@ DetectCPU:
     movem.l d1-d4/a0-a2,-(sp)
 
     ; Save Vector 4 (Illegal Instruction)
-    move.l  $10.w,d2
+    move.l  $10.w,d4           ; D2 is scratch for the CACR probe
     lea     .Trap(pc),a0
     move.l  a0,$10.w
 
@@ -946,7 +946,7 @@ DetectCPU:
 
 .Cleanup:
 	MACHINE 68010
-    move.l  d2,$10.w            ; Restore absolute vector
+    move.l  d4,$10.w            ; Restore absolute vector
 
     tst.l   d0
     beq.s   .EndDetect
