@@ -1082,6 +1082,16 @@ LoadCPULibrary:
 
     move.l  DetectedCPU(pc),d7
 
+    ; The bundled CPU libraries require Kickstart 2.04 or later.
+    move.l  AbsExecBase.w,a6
+    cmpi.w  #37,LIB_VERSION(a6)
+    bhs.s   .BuildName
+    lea     MsgSkipCPULibrary(pc),a0
+    bsr     PrintString
+    moveq   #0,d0
+    bra     .LibDone
+
+.BuildName:
     ; Build library name
     lea     LibBuffer(pc),a1
     lea     LibTemplate(pc),a0
@@ -1384,6 +1394,7 @@ MsgAGA:         dc.b    "  AGA Graphics: Enabled Advanced Graphics Modes",10,0
 MsgAGAFallback: dc.b    "  AGA Graphics: Enabling 64-bit fetch fallback",10,0
 MsgCache:       dc.b    "  CPU Caches: Enabling",10,0
 MsgLoading:     dc.b    "Loading ",0
+MsgSkipCPULibrary: dc.b "Skipping CPU libraries (requires Kickstart 2.04).",10,0
 MsgEllipsis:    dc.b    "... ",0
 MsgOK:          dc.b    "OK.",10,0
 MsgFailed:      dc.b    "FAILED",10,0
