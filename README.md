@@ -6,7 +6,8 @@ A minimal SetPatch replacement for Amiga that fits on a bootable floppy disk. Lo
 
 - **CPU Detection**: Automatically detects 68000 through 68060 processors
 - **CPU Library Loading**: Loads the appropriate CPU library from MMULib
-- **AttnFlags**: Sets proper CPU flags in ExecBase for software compatibility
+- **AttnFlags**: Sets proper CPU flags and distinguishes recognized
+  68881/68882 FPUs, including on Kickstart 1.3 without CPU libraries
 - **Exception Vectors**: Installs handlers for 68060 F-line, unimplemented FP, and unimplemented integer instructions
 - **AGA Support**: Enable AGA display modes when possible and 64-bit fetch mode
 - **Data Cache**: Enables CPU caches for improved performance

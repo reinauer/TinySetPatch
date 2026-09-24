@@ -18,6 +18,7 @@
 ;   1. Patch_680x0Support (Patch 0):
 ;     - Detects CPU type (68000-68060)
 ;     - Sets cumulative AttnFlags (060 sets all lower CPU flags)
+;     - Distinguishes external 68881/68882 FPUs in AttnFlags
 ;     - Fixes Vector 7 alignment
 ;     - Installs exception vectors 11, 60, 61 for 68060
 ;     - Probes CACR bit 14
@@ -384,6 +385,7 @@ Patch_680x0Support:
     jsr     _LVOSuperState(a6)
     move.l  d0,-(sp)
     bsr     ApplyAttnFlags
+    bsr     DetectExternalFPU
     move.l  (sp)+,d0
     bsr     ReturnToUserState
     jsr     _LVOPermit(a6)
@@ -1029,6 +1031,51 @@ ApplyAttnFlags:
 
 .CommitFlags:
     move.w  d1,EB_AttnFlags(a6)
+    rts
+
+; =============================================================
+; DISTINGUISH EXTERNAL FPUS
+; Called in supervisor mode, with task switching forbidden.
+; A6 points to ExecBase, as set by ApplyAttnFlags.
+; Only probe an FPU already recognized by Exec on a 68020/68030.
+; =============================================================
+DetectExternalFPU:
+    cmpi.l  #2,DetectedCPU
+    beq.s   .CheckFlags
+    cmpi.l  #3,DetectedCPU
+    bne.s   .Done
+.CheckFlags:
+    btst    #AFB_68881,EB_AttnFlags+1(a6)
+    beq.s   .Done
+    btst    #AFB_68882,EB_AttnFlags+1(a6)
+    bne.s   .Done
+
+    move.l  a0,-(sp)
+    move.w  sr,-(sp)
+    ori.w   #$0700,sr
+    MACHINE 68881
+    fsave   -(sp)
+    move.l  sp,a0              ; Original frame, including pending exceptions
+    tst.b   (sp)               ; A null frame has no usable size field
+    bne.s   .CheckFrame
+    fmove.l #0,fpcr            ; Leave reset state without changing its FPCR
+    fsave   -(sp)              ; Obtain a distinguishable idle frame
+.CheckFrame:
+    ; Size byte excludes the four-byte header: 68882 idle/busy = $38/$D4.
+    ; 68881 frames use $18/$B4. Leave unknown formats unchanged.
+    cmpi.b  #$38,1(sp)
+    beq.s   .Found882
+    cmpi.b  #$D4,1(sp)
+    bne.s   .Restore
+.Found882:
+    bset    #AFB_68882,EB_AttnFlags+1(a6)
+.Restore:
+    move.l  a0,sp
+    frestore (sp)+             ; Restore the original idle, busy or null state
+    MACHINE 68000
+    move.w  (sp)+,sr
+    move.l  (sp)+,a0
+.Done:
     rts
 
 ; =============================================================
