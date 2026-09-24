@@ -1172,12 +1172,12 @@ LoadCPULibrary:
 ; =============================================================
 PrintString:
     ; Check quiet mode first (use LEA+TST as TST doesn't support d(PC) on 68000)
-    ; A1 is scratch here - saved by movem.l below if we continue
+    ; A1 is scratch; preserve the message pointer in A2 across DOS calls.
     lea     QuietMode(pc),a1
     tst.b   (a1)
     bne.s   .p_quiet
-    movem.l d0-d3/a0-a1/a6,-(sp)
-    move.l  a0,a1
+    movem.l d0-d3/a0-a2/a6,-(sp)
+    move.l  a0,a2              ; Output() may clobber scratch register A1
     move.l  DOSBase(pc),d0
     beq.s   .p_exit
     move.l  d0,a6
@@ -1185,8 +1185,8 @@ PrintString:
     tst.l   d0
     beq.s   .p_exit
     move.l  d0,d1
-    move.l  a1,d2
-    move.l  a1,a0
+    move.l  a2,d2
+    move.l  a2,a0
 .strlen:
     tst.b   (a0)+
     bne.s   .strlen
@@ -1195,7 +1195,7 @@ PrintString:
     move.l  a0,d3
     jsr     _LVOWrite(a6)
 .p_exit:
-    movem.l (sp)+,d0-d3/a0-a1/a6
+    movem.l (sp)+,d0-d3/a0-a2/a6
 .p_quiet:
     rts
 
