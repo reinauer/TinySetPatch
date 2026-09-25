@@ -202,9 +202,11 @@ Start:
     lea     SetPatchSemaPtr(pc),a0
     move.l  a2,(a0)
 
-    ; Add the semaphore to system list
+    ; AddSemaphore is broken before Exec V36. The semaphore is already
+    ; initialized and Forbid is held, so use the documented workaround.
+    lea     SemaphoreList(a6),a0
     move.l  a2,a1
-    jsr     _LVOAddSemaphore(a6)
+    jsr     _LVOEnqueue(a6)
     jsr     _LVOPermit(a6)
     bra.s   .SemaDone
 
