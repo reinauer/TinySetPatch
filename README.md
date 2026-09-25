@@ -92,7 +92,7 @@ can therefore be skipped even when the next block is readable.
 
 ## Credits
 
-CPU-specific 680x0 libraries are from [MMULib](http://aminet.net/util/libs/MMULib.lha) by Thomas Richter.
+CPU-specific 680x0 libraries are from [MMULib](https://aminet.net/package/util/libs/MMULib) by Thomas Richter.
 
 ## Contributing
 
