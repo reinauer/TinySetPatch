@@ -40,7 +40,7 @@ DOWNLOAD_DIR = downloads
 MMULIB_LHA = $(DOWNLOAD_DIR)/MMULib.lha
 
 # MD5 checksums for verification
-MMULIB_MD5 = 1e63e42c9d2895d22f896b6d90c26353
+MMULIB_MD5 = 26bea62b0004a984a911c73ea2051d1a
 
 .PHONY: disk lha download-libs print-adf-name print-lha-name
 
